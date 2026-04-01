@@ -10,6 +10,7 @@ import (
 	"casino/internal/transactions/app"
 	"casino/internal/transactions/domain"
 
+	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -26,16 +27,18 @@ func TestConsumer_Run(t *testing.T) {
 	t.Run("successfully process message", func(t *testing.T) {
 		mockReader := NewMockMessageReader(t)
 		mockRepo := domain.NewMockRepository(t)
-		
+
 		application := app.New(mockRepo, nopLogger)
-		
+
 		consumer := &Consumer{
 			app:    application,
 			reader: mockReader,
 			logger: nopLogger,
 		}
 
+		txID := uuid.Must(uuid.NewV7()).String()
 		msg := transactionMessage{
+			ID:              txID,
 			UserID:          "user-1",
 			TransactionType: "bet",
 			Amount:          100,
@@ -52,8 +55,8 @@ func TestConsumer_Run(t *testing.T) {
 		mockReader.EXPECT().ReadMessage(mock.Anything).Return(kafka.Message{}, errors.New("stop")).Once()
 
 		mockRepo.EXPECT().Save(mock.Anything, mock.MatchedBy(func(tr *domain.Transaction) bool {
-			return tr.UserID() == msg.UserID && 
-				tr.Type() == domain.TransactionTypeBet && 
+			return tr.UserID() == msg.UserID &&
+				tr.Type() == domain.TransactionTypeBet &&
 				tr.Amount() == msg.Amount
 		})).Return(nil).Once()
 
@@ -65,9 +68,9 @@ func TestConsumer_Run(t *testing.T) {
 	t.Run("skip invalid JSON", func(t *testing.T) {
 		mockReader := NewMockMessageReader(t)
 		mockRepo := domain.NewMockRepository(t)
-		
+
 		application := app.New(mockRepo, nopLogger)
-		
+
 		consumer := &Consumer{
 			app:    application,
 			reader: mockReader,
@@ -89,16 +92,18 @@ func TestConsumer_Run(t *testing.T) {
 	t.Run("skip on handler error", func(t *testing.T) {
 		mockReader := NewMockMessageReader(t)
 		mockRepo := domain.NewMockRepository(t)
-		
+
 		application := app.New(mockRepo, nopLogger)
-		
+
 		consumer := &Consumer{
 			app:    application,
 			reader: mockReader,
 			logger: nopLogger,
 		}
 
+		txID := uuid.Must(uuid.NewV7()).String()
 		msg := transactionMessage{
+			ID:              txID,
 			UserID:          "user-1",
 			TransactionType: "invalid-type", // This will cause Handle to return error
 			Amount:          100,
@@ -117,13 +122,13 @@ func TestConsumer_Run(t *testing.T) {
 		assert.Contains(t, err.Error(), "stop")
 		// mockRepo.Save should NOT be called because of invalid transaction type
 	})
-	
+
 	t.Run("return error on ReadMessage error", func(t *testing.T) {
 		mockReader := NewMockMessageReader(t)
 		mockRepo := domain.NewMockRepository(t)
-		
+
 		application := app.New(mockRepo, nopLogger)
-		
+
 		consumer := &Consumer{
 			app:    application,
 			reader: mockReader,

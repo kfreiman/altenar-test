@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -21,7 +22,9 @@ func TestProcessTransactionHandler_Handle(t *testing.T) {
 	handler := command.NewProcessTransactionHandler(mockRepo, mockLogger)
 
 	t.Run("success", func(t *testing.T) {
+		id, _ := uuid.NewV7()
 		cmd := command.ProcessTransaction{
+			ID:              id.String(),
 			UserID:          "user-1",
 			TransactionType: "bet",
 			Amount:          100,
@@ -35,7 +38,9 @@ func TestProcessTransactionHandler_Handle(t *testing.T) {
 	})
 
 	t.Run("invalid transaction type", func(t *testing.T) {
+		id, _ := uuid.NewV7()
 		cmd := command.ProcessTransaction{
+			ID:              id.String(),
 			UserID:          "user-1",
 			TransactionType: "invalid",
 			Amount:          100,
@@ -50,7 +55,9 @@ func TestProcessTransactionHandler_Handle(t *testing.T) {
 	})
 
 	t.Run("invalid amount", func(t *testing.T) {
+		id, _ := uuid.NewV7()
 		cmd := command.ProcessTransaction{
+			ID:              id.String(),
 			UserID:          "user-1",
 			TransactionType: "bet",
 			Amount:          -1,
@@ -65,7 +72,9 @@ func TestProcessTransactionHandler_Handle(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		id, _ := uuid.NewV7()
 		cmd := command.ProcessTransaction{
+			ID:              id.String(),
 			UserID:          "user-1",
 			TransactionType: "bet",
 			Amount:          100,
