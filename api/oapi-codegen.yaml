@@ -1,0 +1,6 @@
+package: gen
+generate:
+  std-http-server: true
+  models: true
+  strict-server: true
+output: internal/transactions/ports/http/gen/gen.go

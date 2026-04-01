@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "adr-writer": {
+      "source": "patricio0312rev/skills",
+      "sourceType": "github",
+      "computedHash": "2ce46d1b202a87a3349737dad68788eca2a5dd08de8f2e5a7ca3721cbb150e1c"
+    },
+    "conventional-commits": {
+      "source": "patricio0312rev/skills",
+      "sourceType": "github",
+      "computedHash": "1a9b826315006b8bf32126c8391f7f11e8ed090b8506f029ccca165cb4f438dc"
+    }
+  }
+}

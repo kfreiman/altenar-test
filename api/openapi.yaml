@@ -1,0 +1,220 @@
+openapi: 3.0.4
+info:
+  title: Casino Transaction API v1
+  description: |
+    API for managing casino transaction data.
+    
+    Provides endpoints to query user bet and win transactions.
+    
+    ## Transaction Types
+    - `bet` - User placed a bet
+    - `win` - User won a bet
+  version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  contact:
+    name: API Support
+servers:
+  - url: http://{host}:{port}
+    description: Dynamic server configuration
+    variables:
+      host:
+        default: localhost
+        description: Server hostname
+      port:
+        default: "8080"
+        description: Server port
+
+tags:
+  - name: Health
+    description: Service health status
+  - name: Transactions
+    description: Transaction query operations
+
+paths:
+  /v1/health:
+    get:
+      operationId: healthCheck
+      summary: Health check
+      description: Returns the health status of the service.
+      tags:
+        - Health
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: "healthy"
+        "500":
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: INTERNAL_ERROR
+                message: "service is unavailable"
+
+  /v1/transactions:
+    get:
+      operationId: listTransactions
+      summary: List transactions
+      description: |
+        Returns a paginated list of transactions with optional filtering by user and transaction type.
+        Use cursor-based pagination for efficient large dataset handling.
+      tags:
+        - Transactions
+      security: [] # TODO add auth
+      parameters:
+        - name: user_id
+          in: query
+          description: Filter by user ID
+          required: false
+          schema:
+            type: string
+            example: "user-123"
+        - name: transaction_type
+          in: query
+          description: Filter by transaction type
+          required: false
+          schema:
+            $ref: "#/components/schemas/TransactionType"
+        - name: page_size
+          in: query
+          description: Number of transactions per page (max 100)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+            example: 50
+        - name: cursor
+          in: query
+          description: Cursor for pagination (transaction ID from previous page)
+          required: false
+          schema:
+            type: string
+            format: uuid
+            example: "018e4657-0000-7000-8000-000000000001"
+      responses:
+        "200":
+          description: Successful response with transaction list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionListResponse"
+              example:
+                transactions:
+                  - id: "018e4657-0000-7000-8000-000000000001"
+                    user_id: "user-123"
+                    transaction_type: "bet"
+                    amount: 10000
+                    timestamp: "2024-01-15T10:30:00Z"
+                  - id: "018e4657-0000-7001-8000-000000000002"
+                    user_id: "user-123"
+                    transaction_type: "win"
+                    amount: 25000
+                    timestamp: "2024-01-15T11:00:00Z"
+                next_cursor: "018e4657-0000-7002-8000-000000000003"
+                has_more: true
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: INVALID_TRANSACTION_TYPE
+                message: "transaction type must be 'bet' or 'win'"
+
+components:
+  schemas:
+    TransactionType:
+      type: string
+      enum:
+        - bet
+        - win
+      description: Type of casino transaction
+
+    Transaction:
+      type: object
+      required:
+        - id
+        - user_id
+        - transaction_type
+        - amount
+        - timestamp
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the transaction (UUID v7)
+          example: "018e4657-0000-7000-8000-000000000001"
+        user_id:
+          type: string
+          description: Unique identifier of the user
+          example: "user-123"
+        transaction_type:
+          $ref: "#/components/schemas/TransactionType"
+        amount:
+          type: integer
+          format: int64
+          description: Transaction amount in smallest currency unit (e.g., cents)
+          example: 10000
+        timestamp:
+          type: string
+          format: date-time
+          description: Time the transaction occurred
+          example: "2024-01-15T10:30:00Z"
+
+    TransactionListResponse:
+      type: object
+      required:
+        - transactions
+        - has_more
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transaction"
+          description: List of transactions in the current page
+        next_cursor:
+          type: string
+          format: uuid
+          description: Cursor for retrieving the next page (null if no more pages)
+          nullable: true
+        has_more:
+          type: boolean
+          description: Indicates if there are more transactions available
+      description: Paginated list of transactions with pagination metadata
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: Current health status of the service
+          example: "healthy"
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code for programmatic handling
+          example: INVALID_TRANSACTION_TYPE
+        message:
+          type: string
+          description: Human-readable error message
+          example: "transaction type must be 'bet' or 'win'"

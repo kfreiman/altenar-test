@@ -1,0 +1,19 @@
+dir: '{{.InterfaceDir}}'
+filename: mocks.go
+force-file-write: true
+formatter: goimports
+formatter-options:
+  goimports:
+    local-prefix: "casino"
+generate: true
+include-auto-generated: false
+log-level: info
+structname: '{{.Mock}}{{.InterfaceName}}'
+pkgname: '{{.SrcPackageName}}'
+recursive: false
+template: testify
+packages:
+  casino/internal:
+    config:
+      recursive: true
+      all: true

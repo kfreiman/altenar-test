@@ -1,0 +1,43 @@
+x-go-service-dev: &go-service-dev
+  build:
+    context: .
+    dockerfile: Dockerfile.dev
+    args:
+      DIR: ${PWD} # pass current directory for better filepath mapping in editor
+  volumes:
+    - ${PWD}:${PWD}
+    - go-cache:/go/pkg/mod
+    - air-cache:${PWD}/tmp
+
+services:
+  casino_api:
+    container_name: casino_api
+    image: casino_api:dev
+    <<: *go-service-dev
+
+  casino_consumer:
+    container_name: casino_consumer
+    image: casino_consumer:dev
+    <<: *go-service-dev
+
+  casino_postgres:
+    container_name: casino_postgres
+    image: postgres:18-alpine
+    ports:
+      - "${CASINO_DB_EXPOSED_PORT:-5432}:5432"
+
+  casino_kafka:
+    container_name: casino_kafka
+    image: apache/kafka:4.2.0
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+
+volumes:
+  go-cache:
+    driver: local
+  air-cache:
+    driver: local
+
+networks:
+  casino_net:
+    name: casino_net

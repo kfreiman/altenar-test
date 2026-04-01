@@ -1,0 +1,41 @@
+# Version control
+.git
+.gitignore
+
+# Build outputs
+bin/
+tmp/
+coverage.out
+coverage.html
+
+# Dependencies (reinstalled in container)
+/go/pkg/mod
+
+# Docker
+Dockerfile*
+docker-compose*
+.docker
+
+# Documentation
+*.md
+docs/
+
+# Development files
+.env*
+*.log
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Testing
+*_test.go
+coverage/
+.aturbo/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+Jenkinsfile
+
+
