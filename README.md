@@ -2,18 +2,60 @@
 
 A high-performance, idempotent transaction management system built with Go 1.26+, Kafka, and PostgreSQL. It tracks user bets and wins, processing them asynchronously and providing a queryable REST API.
 
+## Table of Contents
+
+- [Casino Transaction Management System](#casino-transaction-management-system)
+  - [Table of Contents](#table-of-contents)
+  - [Goals](#goals)
+  - [Non-Goals](#non-goals)
+  - [Architecture](#architecture)
+    - [System Overview](#system-overview)
+    - [Key Architectural Decisions](#key-architectural-decisions)
+  - [Technology Stack](#technology-stack)
+  - [Project Structure](#project-structure)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Quick Start with Docker (Recommended)](#quick-start-with-docker-recommended)
+    - [Development Workflow with Docker](#development-workflow-with-docker)
+    - [Makefile Commands](#makefile-commands)
+      - [Configuring the Seeder](#configuring-the-seeder)
+      - [Why the Seeder is implemented this way](#why-the-seeder-is-implemented-this-way)
+    - [Environment Variables](#environment-variables)
+  - [API Documentation](#api-documentation)
+    - [Endpoints](#endpoints)
+      - [Health Check](#health-check)
+      - [List Transactions](#list-transactions)
+    - [Example Requests](#example-requests)
+      - [Health Check](#health-check-1)
+      - [List All Transactions](#list-all-transactions)
+      - [Filter by Transaction Type](#filter-by-transaction-type)
+      - [Filter by User ID](#filter-by-user-id)
+      - [Pagination with Cursor](#pagination-with-cursor)
+      - [Error Response (Invalid Type)](#error-response-invalid-type)
+  - [Code Generation](#code-generation)
+    - [Generated Components](#generated-components)
+    - [Code Generation Workflow](#code-generation-workflow)
+    - [Generated Code Structure](#generated-code-structure)
+  - [Testing](#testing)
+    - [Running Tests](#running-tests)
+    - [Test Types](#test-types)
+  - [Development](#development)
+    - [Linting](#linting)
+    - [Local Development Setup](#local-development-setup)
+  - [Future Improvements](#future-improvements)
+
 ## Goals
 
-* **Idempotent processing**: Ensure every Kafka message (bet/win event) is processed exactly once by using UUIDv7 as deterministic primary keys.
-* **Financial Precision**: Prevent rounding errors by storing all amounts in minor units (e.g., cents) as integers.
-* **Performance**: Optimize for high-throughput ingestion and low-latency historical queries using cursor-based pagination.
-* **Type Safety**: Leverage code generation for database access (sqlc) and API contracts (oapi-codegen).
+- **Idempotent processing**: Ensure every Kafka message (bet/win event) is processed exactly once by using UUIDv7 as deterministic primary keys.
+- **Financial Precision**: Prevent rounding errors by storing all amounts in minor units (e.g., cents) as integers.
+- **Performance**: Optimize for high-throughput ingestion and low-latency historical queries using cursor-based pagination.
+- **Type Safety**: Leverage code generation for database access (sqlc) and API contracts (oapi-codegen).
 
 ## Non-Goals
 
-* **Balance Management**: This system records transactions but does not maintain or calculate real-time user balances.
-* **Authentication/Authorization**: Intended to be handled by an API Gateway or reverse proxy; the service itself is internal-only.
-* **Multi-Currency Support**: Currently only supports a single currency based on the provided minor units.
+- **Balance Management**: This system records transactions but does not maintain or calculate real-time user balances.
+- **Authentication/Authorization**: Intended to be handled by an API Gateway or reverse proxy; the service itself is internal-only.
+- **Multi-Currency Support**: Currently only supports a single currency based on the provided minor units.
 
 ## Architecture
 
@@ -54,25 +96,25 @@ graph TD
 
 ### Key Architectural Decisions
 
-* **Idempotency**: Uses Producer-generated **UUIDv7** as primary keys to ensure that the same event is never processed twice [[ADR-002]](docs/adr/ADR-002-choose-kafka-and-idempotent-message-processing.md).
-* **Precision**: Financial amounts are stored as `BIGINT` (minor units/cents) to avoid floating-point errors [[ADR-004]](docs/adr/ADR-004-database-schema-and-indexing.md).
-* **Scalability**: PostgreSQL uses **range partitioning** based on UUIDv7 for efficient time-based data distribution and pruning [[ADR-004]](docs/adr/ADR-004-database-schema-and-indexing.md).
-* **Performance**: Cursor-based pagination for history queries to ensure stable performance as data grows [[ADR-004]](docs/adr/ADR-004-database-schema-and-indexing.md).
+- **Idempotency**: Uses Producer-generated **UUIDv7** as primary keys to ensure that the same event is never processed twice [[ADR-002]](docs/adr/ADR-002-choose-kafka-and-idempotent-message-processing.md).
+- **Precision**: Financial amounts are stored as `BIGINT` (minor units/cents) to avoid floating-point errors [[ADR-004]](docs/adr/ADR-004-database-schema-and-indexing.md).
+- **Scalability**: PostgreSQL uses **range partitioning** based on UUIDv7 for efficient time-based data distribution and pruning [[ADR-004]](docs/adr/ADR-004-database-schema-and-indexing.md).
+- **Performance**: Cursor-based pagination for history queries to ensure stable performance as data grows [[ADR-004]](docs/adr/ADR-004-database-schema-and-indexing.md).
 
 For more details, see the [Architecture Decision Records (ADRs)](docs/adr/README.md).
 
 ## Technology Stack
 
-* **Language**: [Go 1.26+](https://go.dev/)
-* **API**: Standard `net/http` with [OpenAPI 3.1](https://www.openapis.org/) support
-* **Database**: [PostgreSQL 18](https://www.postgresql.org/) (with range partitioning) [[ADR-001]](docs/adr/ADR-001-choose-postgresql-for-transaction-storage.md)
-* **Message Broker**: [Apache Kafka 4.2.0](https://kafka.apache.org/) (KRaft mode) [[ADR-002]](docs/adr/ADR-002-choose-kafka-and-idempotent-message-processing.md)
-* **Persistence**: [sqlc](https://sqlc.dev/) for type-safe SQL queries
-* **Migration**: [dbmate](https://github.com/amacneil/dbmate) for database versioning
-* **API Spec**: [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen) for Go server generation
-* **CLI Framework**: [Cobra](https://github.com/spf13/cobra) + [Viper](https://github.com/spf13/viper) for configuration
-* **Logging**: [slog](https://pkg.go.dev/log/slog) with [zerolog](https://github.com/rs/zerolog) backend for structured JSON output
-* **Container Orchestration**: Docker Compose for development and production
+- **Language**: [Go 1.26+](https://go.dev/)
+- **API**: Standard `net/http` with [OpenAPI 3.1](https://www.openapis.org/) support
+- **Database**: [PostgreSQL 18](https://www.postgresql.org/) (with range partitioning) [[ADR-001]](docs/adr/ADR-001-choose-postgresql-for-transaction-storage.md)
+- **Message Broker**: [Apache Kafka 4.2.0](https://kafka.apache.org/) (KRaft mode) [[ADR-002]](docs/adr/ADR-002-choose-kafka-and-idempotent-message-processing.md)
+- **Persistence**: [sqlc](https://sqlc.dev/) for type-safe SQL queries
+- **Migration**: [dbmate](https://github.com/amacneil/dbmate) for database versioning
+- **API Spec**: [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen) for Go server generation
+- **CLI Framework**: [Cobra](https://github.com/spf13/cobra) + [Viper](https://github.com/spf13/viper) for configuration
+- **Logging**: [slog](https://pkg.go.dev/log/slog) with [zerolog](https://github.com/rs/zerolog) backend for structured JSON output
+- **Container Orchestration**: Docker Compose for development and production
 
 ## Project Structure
 
@@ -109,9 +151,9 @@ For more details, see the [Architecture Decision Records (ADRs)](docs/adr/README
 
 ### Prerequisites
 
-* Docker and Docker Compose (required)
-* Go 1.26+ (optional, for local development without Docker)
-* `make` (optional, for development workflow)
+- Docker and Docker Compose (required)
+- Go 1.26+ (optional, for local development without Docker)
+- `make` (optional, for development workflow)
 
 ### Quick Start with Docker (Recommended)
 
@@ -190,32 +232,32 @@ make logs
 
 **Environment Management:**
 
-* `make up`: Start all services via Docker Compose (production mode).
-* `make down`: Stop all services.
-* `make dev`: Start development environment with hot reload.
-* `make logs`: View all service logs.
+- `make up`: Start all services via Docker Compose (production mode).
+- `make down`: Stop all services.
+- `make dev`: Start development environment with hot reload.
+- `make logs`: View all service logs.
 
 **Service Management:**
 
-* `make api`, `make consumer`, `make postgres`, `make kafka`: Start individual services.
-* `make api-dev`, `make consumer-dev`: Start services in development mode.
-* `make api-logs`, `make consumer-logs`: View service-specific logs.
+- `make api`, `make consumer`, `make postgres`, `make kafka`: Start individual services.
+- `make api-dev`, `make consumer-dev`: Start services in development mode.
+- `make api-logs`, `make consumer-logs`: View service-specific logs.
 
 **Testing & Quality:**
 
-* `make test`: Run unit tests (target: >85% coverage).
-* `make test-coverage`: Run tests and generate HTML coverage report.
-* `make lint`: Run golangci-lint (if installed).
+- `make test`: Run unit tests (target: >85% coverage).
+- `make test-coverage`: Run tests and generate HTML coverage report.
+- `make lint`: Run golangci-lint (if installed).
 
 **Code Generation:**
 
-* `make generate`: Run sqlc and oapi-codegen [[ADR-003]](docs/adr/ADR-003-adopt-ddd-lite-with-cqrs-and-clean-architecture.md).
-* `make migrate`: Apply database migrations.
-* `make migrate-down`: Rollback database migrations.
+- `make generate`: Run sqlc and oapi-codegen [[ADR-003]](docs/adr/ADR-003-adopt-ddd-lite-with-cqrs-and-clean-architecture.md).
+- `make migrate`: Apply database migrations.
+- `make migrate-down`: Rollback database migrations.
 
 **Data Management:**
 
-* `make seed`: Send sample events to Kafka. This uses the `seeder` tool to generate realistic transaction data.
+- `make seed`: Send sample events to Kafka. This uses the `seeder` tool to generate realistic transaction data.
 
 #### Configuring the Seeder
 
@@ -265,23 +307,60 @@ Key environment variables (see `.env.example` or `compose.yaml` for full list):
 
 ## API Documentation
 
-The API follows the OpenAPI 3.1 specification found in `api/openapi.yaml`.
+The API follows the OpenAPI 3.0.4 specification found in `api/openapi.yaml`. The base URL is `http://localhost:8080` (configurable via `CASINO_HTTP_PORT`).
 
-### Main Endpoints
+### Endpoints
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/v1/transactions` | List all transactions with optional filtering. |
-| `GET` | `/v1/health` | Health check endpoint. |
+#### Health Check
 
-**Query Parameters (`/v1/transactions`):**
+| Method | Endpoint | Tags | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/v1/health` | Health | Returns the health status of the service. |
 
-* `user_id`: Filter by unique identifier of the user.
-* `transaction_type`: Filter by `bet` or `win`.
+**Response:**
 
-**Example Requests:**
+```json
+{
+  "status": "healthy"
+}
+```
 
-**Health Check**
+**Error Response:**
+
+```json
+{
+  "code": "INTERNAL_ERROR",
+  "message": "service is unavailable"
+}
+```
+
+#### List Transactions
+
+| Method | Endpoint | Tags | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/v1/transactions` | Transactions | Returns a paginated list of transactions with optional filtering. |
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description | Default |
+| :--- | :--- | :--- | :--- | :--- |
+| `user_id` | string | No | Filter by unique identifier of the user | - |
+| `transaction_type` | string | No | Filter by transaction type (`bet` or `win`) | - |
+| `page_size` | integer | No | Number of transactions per page (max 100) | `50` |
+| `cursor` | string (uuid) | No | Cursor for pagination (transaction ID from previous page) | - |
+
+**Transaction Type Values:**
+
+- `bet` - User placed a bet
+- `win` - User won a bet
+
+**Pagination:**
+
+This API uses cursor-based pagination for efficient handling of large datasets. Include the `next_cursor` value from the previous response to fetch the next page.
+
+### Example Requests
+
+#### Health Check
 
 ```bash
 curl -i http://localhost:8080/v1/health
@@ -295,7 +374,7 @@ Response:
 }
 ```
 
-**List all transactions**
+#### List All Transactions
 
 ```bash
 curl -i http://localhost:8080/v1/transactions?page_size=2
@@ -305,40 +384,46 @@ Response:
 
 ```json
 {
- "has_more": true,
- "next_cursor": "019d4817-b9cc-7f16-a5b8-aebdbf3f266d",
- "transactions": [
-  {
-   "amount": 96,
-   "id": "019d4817-b9ce-79bc-be42-8a44f346aec9",
-   "timestamp": "2026-04-01T08:10:02.47374Z",
-   "transaction_type": "bet",
-   "user_id": "user_1"
-  },
-  {
-   "amount": 91,
-   "id": "019d4817-b9cc-7f16-a5b8-aebdbf3f266d",
-   "timestamp": "2026-04-01T08:10:02.473739Z",
-   "transaction_type": "bet",
-   "user_id": "user_2"
-  }
- ]
+  "has_more": true,
+  "next_cursor": "018e4657-0000-7002-8000-000000000003",
+  "transactions": [
+    {
+      "amount": 10000,
+      "id": "018e4657-0000-7000-8000-000000000001",
+      "timestamp": "2024-01-15T10:30:00Z",
+      "transaction_type": "bet",
+      "user_id": "user-123"
+    },
+    {
+      "amount": 25000,
+      "id": "018e4657-0000-7001-8000-000000000002",
+      "timestamp": "2024-01-15T11:00:00Z",
+      "transaction_type": "win",
+      "user_id": "user-123"
+    }
+  ]
 }
 ```
 
-**Filter by transaction type**
+#### Filter by Transaction Type
 
 ```bash
 curl -i "http://localhost:8080/v1/transactions?transaction_type=bet&page_size=2"
 ```
 
-**Filter by user ID**
+#### Filter by User ID
 
 ```bash
-curl -i "http://localhost:8080/v1/transactions?user_id=user_3&page_size=2"
+curl -i "http://localhost:8080/v1/transactions?user_id=user-123&page_size=2"
 ```
 
-**Error Response (Invalid Type)**
+#### Pagination with Cursor
+
+```bash
+curl -i "http://localhost:8080/v1/transactions?page_size=2&cursor=018e4657-0000-7001-8000-000000000002"
+```
+
+#### Error Response (Invalid Type)
 
 ```bash
 curl -i "http://localhost:8080/v1/transactions?transaction_type=invalid"
@@ -349,7 +434,7 @@ Response:
 ```json
 {
  "code": "INVALID_TRANSACTION_TYPE",
- "message": "unsupported transaction type \"invalid\": transaction type must be 'bet' or 'win'"
+ "message": "transaction type must be 'bet' or 'win'"
 }
 ```
 
@@ -370,10 +455,10 @@ The project uses **code generation** to ensure type-safety and reduce boilerplat
 
 **When to regenerate:**
 
-* Modified SQL query files
-* Updated OpenAPI specification
-* Changes to database schema in migrations
-* After adding or modifying a Go interface that requires testing
+- Modified SQL query files
+- Updated OpenAPI specification
+- Changes to database schema in migrations
+- After adding or modifying a Go interface that requires testing
 
 **How to regenerate:**
 
@@ -421,8 +506,8 @@ make test-coverage
 
 **Coverage Report Location:**
 
-* Console summary: `make test-coverage` output
-* HTML report: `coverage.html` (open in browser)
+- Console summary: `make test-coverage` output
+- HTML report: `coverage.html` (open in browser)
 
 ### Test Types
 
@@ -469,9 +554,9 @@ For full IDE support with code generation:
 
 Based on the current goals and architecture, the following areas are identified for future enhancement:
 
-* **Observability & Monitoring**: Integrate **Prometheus** for real-time metrics (e.g., message processing latency, error rates) and **OpenTelemetry** for distributed tracing across Kafka and the API.
-* **Balance Service Integration**: Implement a separate service that consumes transaction events via **Change Data Capture (CDC)** from PostgreSQL to maintain real-time user balances.
-* **Multi-Currency Support**: Extend the domain model and database schema to support multiple currencies with exchange rate handling, while maintaining financial precision.
-* **Enhanced Querying**: Implement search and filtering using **Elasticsearch** or specialized OLAP databases for complex analytical queries that go beyond simple history retrieval.
-* **Rate Limiting & Security**: Add API rate limiting and integrate with an OIDC provider (e.g., Keycloak) for secure, authenticated access in a production environment.
-* **Automated Performance Testing**: Integrate periodic load testing (e.g., using k6) into the CI/CD pipeline to ensure the system meets high-throughput requirements.
+- **Observability & Monitoring**: Integrate **Prometheus** for real-time metrics (e.g., message processing latency, error rates) and **OpenTelemetry** for distributed tracing across Kafka and the API.
+- **Balance Service Integration**: Implement a separate service that consumes transaction events via **Change Data Capture (CDC)** from PostgreSQL to maintain real-time user balances.
+- **Multi-Currency Support**: Extend the domain model and database schema to support multiple currencies with exchange rate handling, while maintaining financial precision.
+- **Enhanced Querying**: Implement search and filtering using **Elasticsearch** or specialized OLAP databases for complex analytical queries that go beyond simple history retrieval.
+- **Rate Limiting & Security**: Add API rate limiting and integrate with an OIDC provider (e.g., Keycloak) for secure, authenticated access in a production environment.
+- **Automated Performance Testing**: Integrate periodic load testing (e.g., using k6) into the CI/CD pipeline to ensure the system meets high-throughput requirements.
